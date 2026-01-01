@@ -1,0 +1,79 @@
+syntax = "proto3";
+
+package parl.ratelimit.v1;
+
+// Repository: https://github.com/aasimkhan02/Valvo
+// This file formalizes the external rate-limiting API contract
+// and ensures long-term stability for external consumers.
+
+option go_package = "github.com/aasimkhan02/Valvo/internal/api/ratelimitpb";
+
+// ==============================
+// Core Service
+// ==============================
+
+service RateLimitService {
+  // CheckRateLimit returns a decision about whether a request should be allowed,
+  // softly denied, or hard denied based on multi-dimensional keys.
+  rpc CheckRateLimit(CheckRateLimitRequest)
+      returns (CheckRateLimitResponse);
+}
+
+// ==============================
+// Request
+// ==============================
+
+message CheckRateLimitRequest {
+  // Required: identifies who is being rate-limited
+  string tenant_id = 1;
+
+  // Optional but strongly recommended dimensions for finer-grained keys
+  string region   = 2;
+  string api      = 3;
+  string user_id  = 4;
+
+  // Cost of the request (defaults to 1)
+  uint32 cost = 5;
+
+  // Unix timestamp (ms) provided by caller (optional)
+  int64 request_time_ms = 6;
+}
+
+// ==============================
+// Response
+// ==============================
+
+message CheckRateLimitResponse {
+  Decision decision = 1;
+  RateLimitMetadata metadata = 2;
+}
+
+// ==============================
+// Decision Enum
+// ==============================
+
+enum Decision {
+  // Must remain 0 so that unspecified defaults to error / unknown
+  DECISION_UNSPECIFIED = 0;
+
+  // Request is allowed
+  ALLOW = 1;
+
+  // Request should be throttled softly (grace / probabilistic)
+  SOFT_DENY = 2;
+
+  // Request must be rejected immediately
+  HARD_DENY = 3;
+}
+
+// ==============================
+// Metadata
+// ==============================
+
+message RateLimitMetadata {
+  // Best-effort remaining tokens for this key
+  uint64 remaining_tokens = 1;
+
+  // Suggested seconds the client should wait before retrying
+  uint32 retry_after_seconds = 2;
+}
