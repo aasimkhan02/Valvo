@@ -39,6 +39,10 @@ func (b *TokenBucket) Allow(now int64) bool {
 	return true
 }
 
+func (b *TokenBucket) RefillRate() int64 {
+	return b.refillRate
+}
+
 func (b *TokenBucket) Tokens() int64 {
 	return b.tokens
 }
