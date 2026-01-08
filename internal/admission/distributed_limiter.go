@@ -7,6 +7,7 @@ import (
 
 	"github.com/aasimkhan02/Valvo/internal"
 	irredis "github.com/aasimkhan02/Valvo/internal/redis"
+	"github.com/aasimkhan02/Valvo/metrics"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -48,16 +49,17 @@ func (d *DistributedLimiter) Check(
 	// 1️⃣ Local fast path
 	localResult := d.local.Check(key, now)
 	if localResult.Decision == SOFT_DENY {
+		metrics.IncSoftDenied()
 		return localResult
 	}
 
-	// 2️⃣ Global authoritative check
+	// 2️⃣ Global authoritative check (Redis)
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
 
-	res, err := d.redis.Eval(
+	res, err := irredis.TokenBucketScript.Run(
 		ctx,
-		irredis.TokenBucketLua,
+		d.redis,
 		[]string{redisKey(key)},
 		now,
 		d.capacity,
@@ -66,6 +68,9 @@ func (d *DistributedLimiter) Check(
 
 	if err != nil {
 		// Redis failure → degrade gracefully
+		metrics.IncRedisErrors()
+		metrics.IncSoftDenied()
+
 		return RateLimitResult{
 			Decision:        SOFT_DENY,
 			RemainingTokens: localResult.RemainingTokens,
@@ -78,12 +83,16 @@ func (d *DistributedLimiter) Check(
 	remaining := values[1].(int64)
 
 	if allowed == 0 {
+		metrics.IncHardDenied()
+
 		return RateLimitResult{
 			Decision:        HARD_DENY,
 			RemainingTokens: remaining,
 			RetryAfterMs:    1000,
 		}
 	}
+
+	metrics.IncAllowed()
 
 	return RateLimitResult{
 		Decision:        ALLOW,

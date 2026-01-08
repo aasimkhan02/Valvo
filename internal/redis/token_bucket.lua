@@ -42,7 +42,23 @@ redis.call("HMSET", key,
     "last_refill", last_refill
 )
 
-return {1, tokens}
-
 local ttl_seconds = 60
+
+if tokens <= 0 then
+    redis.call("HMSET", key,
+        "tokens", tokens,
+        "last_refill", last_refill
+    )
+    redis.call("EXPIRE", key, ttl_seconds)
+    return {0, tokens}
+end
+
+tokens = tokens - 1
+
+redis.call("HMSET", key,
+    "tokens", tokens,
+    "last_refill", last_refill
+)
 redis.call("EXPIRE", key, ttl_seconds)
+
+return {1, tokens}

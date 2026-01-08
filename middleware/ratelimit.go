@@ -1,7 +1,7 @@
 package middleware
 
 import (
-	"string"
+	"strings"
 	"net/http"
 	"time"
 
@@ -9,7 +9,7 @@ import (
 )
 
 type Limiter interface {
-	Check (key.internal.RateLimitKey, now int64) (allowed bool)
+	Check(key internal.RateLimitKey, now int64) bool
 }
 
 func RateLimit(limiter Limiter) func(http.Handler) http.Handler {
