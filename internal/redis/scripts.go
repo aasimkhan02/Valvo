@@ -1,7 +1,16 @@
+// redis/scripts.go
 package redis
 
-// TokenBucketLua is an atomic Redis Lua script implementing
-// a global token bucket rate limiter.
+import "github.com/redis/go-redis/v9"
+
+// TokenBucketScript is a cached Redis Lua script.
+// go-redis will:
+//   1. LOAD it once (SCRIPT LOAD)
+//   2. Use EVALSHA on every call
+//   3. Fallback to EVAL automatically if Redis restarts
+var TokenBucketScript = redis.NewScript(TokenBucketLua)
+
+// TokenBucketLua implements an atomic token bucket rate limiter.
 //
 // KEYS[1] : rate limit key
 // ARGV[1] : now (unix nanoseconds)
@@ -11,8 +20,6 @@ package redis
 // Returns:
 //   { allowed (0/1), remaining_tokens }
 const TokenBucketLua = `
--- Atomic token bucket rate limiter
-
 local key = KEYS[1]
 local now = tonumber(ARGV[1])
 local capacity = tonumber(ARGV[2])
@@ -20,17 +27,16 @@ local refill_rate = tonumber(ARGV[3])
 
 -- Fetch current state
 local data = redis.call("HMGET", key, "tokens", "last_refill")
-
 local tokens = tonumber(data[1])
 local last_refill = tonumber(data[2])
 
--- Initialize if key does not exist
+-- Initialize bucket
 if tokens == nil or last_refill == nil then
     tokens = capacity
     last_refill = now
 end
 
--- Refill tokens based on elapsed time
+-- Refill tokens
 local elapsed = now - last_refill
 if elapsed > 0 then
     local refill = math.floor(elapsed * refill_rate / 1000000000)
@@ -40,7 +46,7 @@ if elapsed > 0 then
     end
 end
 
--- Deny if no tokens left
+-- Reject if empty
 if tokens <= 0 then
     redis.call("HMSET", key,
         "tokens", tokens,
@@ -49,7 +55,7 @@ if tokens <= 0 then
     return {0, tokens}
 end
 
--- Consume one token
+-- Consume token
 tokens = tokens - 1
 
 redis.call("HMSET", key,

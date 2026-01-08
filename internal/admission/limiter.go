@@ -3,8 +3,8 @@ package admission
 import "github.com/aasimkhan02/Valvo/internal"
 
 type RateLimiter interface {
-	Decide ( 
+	Check(
 		key internal.RateLimitKey,
-		now int64
+		now int64,
 	) RateLimitResult
 }

@@ -43,3 +43,6 @@ redis.call("HMSET", key,
 )
 
 return {1, tokens}
+
+local ttl_seconds = 60
+redis.call("EXPIRE", key, ttl_seconds)

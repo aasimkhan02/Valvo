@@ -9,10 +9,12 @@ import (
 )
 
 type LocalLimiter struct {
-	my sync.Mutex
+	mu sync.Mutex
+
 	buckets map[internal.RateLimitKey]*fastpath.TokenBucket
-	capacity   int64 
-	refillRate int64 
+
+	capacity   int64
+	refillRate int64
 }
 
 func NewLocalLimiter(capacity, refillRate int64) *LocalLimiter {
@@ -43,9 +45,9 @@ func (l *LocalLimiter) Check(
 
 	if !bucket.Allow(now) {
 		return RateLimitResult{
-			Decision:     SOFT_DENY,
+			Decision:        SOFT_DENY,
 			RemainingTokens: 0,
-			RetryAfterMs:    estimateRetry(bucket, now),
+			RetryAfterMs:    estimateRetry(bucket),
 		}
 	}
 
@@ -56,8 +58,8 @@ func (l *LocalLimiter) Check(
 	}
 }
 
-func estimateRetry(b *fastpath.TokenBucket, now int64) int64 {
-	if b == nil {
+func estimateRetry(b *fastpath.TokenBucket) int64 {
+	if b == nil || b.RefillRate() <= 0 {
 		return 0
 	}
 	return int64(time.Second/time.Millisecond) / b.RefillRate()

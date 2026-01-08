@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/aasimkhan02/Valvo/internal"
+	irredis "github.com/aasimkhan02/Valvo/internal/redis"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -56,7 +57,7 @@ func (d *DistributedLimiter) Check(
 
 	res, err := d.redis.Eval(
 		ctx,
-		tokenBucketLua,
+		irredis.TokenBucketLua,
 		[]string{redisKey(key)},
 		now,
 		d.capacity,
