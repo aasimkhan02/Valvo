@@ -8,7 +8,7 @@ type SlidingWindow struct {
 	numBuckets int
 	buckets []int64
 	head int 		 	// current bucket index
-	windowstart int64	// start time of head bucket (nanos)
+	windowStart int64	// start time of head bucket (nanos)
 	total int64 		// total count in window
 }
 

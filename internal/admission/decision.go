@@ -1,6 +1,6 @@
 package admission
 
-type Decision type
+type Decision int
 
 const (
 	ALLOW Decision = iota
@@ -8,8 +8,8 @@ const (
 	HARD_DENY
 )
 
-type result struct {
-	Decision Decision
-	Remaining int64
-	RetryAfterNanos int64
+type RateLimitResult struct {
+	Decision        Decision
+	RemainingTokens int64
+	RetryAfterMs    int64
 }

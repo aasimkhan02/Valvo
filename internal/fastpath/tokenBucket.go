@@ -38,3 +38,7 @@ func (b *TokenBucket) Allow(now int64) bool {
 	b.tokens--
 	return true
 }
+
+func (b *TokenBucket) Tokens() int64 {
+	return b.tokens
+}
